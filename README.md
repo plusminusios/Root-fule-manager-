@@ -1,38 +1,21 @@
-# Root File Manager
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
+</div>
 
-A fast, minimalist, and powerful file manager for Android with specialized features for Root users. Root File Manager provides a clean interface for managing your device's filesystem with professional-grade tools.
+# Run and deploy your AI Studio app
 
-## Key Features
+This contains everything you need to run your app locally.
 
-- **Full Root Access**: Direct access to system partitions, data directories, and restricted files with superuser permissions.
-- **Efficient File Management**: High-speed operations for copying, moving, deleting, and renaming files across internal and system storage.
-- **Built-in Power Editor**: Rich text and code editor with syntax detection for shell scripts, properties, and configuration files.
-- **Dashboard & Control Panel**: Integrated monitoring for storage usage, memory (RAM), battery health, and network connectivity.
-- **Application Logic**: Advanced tool to manage installed packages, view APK details, and perform silent Root installations.
-- **System Maintenance**: Specialized features to block system updates (OTA), execute shell scripts, and manage power states (Reboot, Recovery, Bootloader).
-- **Modern Architecture**: Built entirely with Jetpack Compose for a buttery-smooth, responsive, and data-driven user interface.
+View your app in AI Studio: https://ai.studio/apps/cc8f85d0-fc29-4835-b428-384101906b36
 
-## Visual Identity
+## Run Locally
 
-Root File Manager follows a **Deep Dark Minimalism** design philosophy. It utilizes a custom theme optimized for OLED displays, reducing eye strain and power consumption while maintaining high information density and sharp visual hierarchy.
+**Prerequisites:**  [Android Studio](https://developer.android.com/studio)
 
-## Installation
 
-1. Download the latest version of the application from the [Official Repository](https://github.com/plusminusios/Root-file-manager-).
-2. Grant "All Files Access" permission when prompted.
-3. If your device is rooted, grant "Superuser" access to enable restricted partition management and system utilities.
-
-## GitHub Repository
-
-Visit the official repository for updates and source code: [github.com/plusminusios/Root-file-manager-](https://github.com/plusminusios/Root-file-manager-)
-
-## Build Information
-
-- **Minimum SDK**: 26 (Android 8.0)
-- **Target SDK**: 34 (Android 14)
-- **Kotlin Version**: 2.1.0
-- **UI Framework**: Jetpack Compose
-
-## Disclaimer
-
-Root File Manager is a powerful tool. Modifying system files can be dangerous and may lead to a bootloop. Always backup your data before making changes to `/system` or `/data` partitions. The developer is not responsible for any damage caused to your device.
+1. Open Android Studio
+2. Select **Open** and choose the directory containing this project
+3. Allow Android Studio to fix any incompatibilities as it imports the project.
+4. Create a file named `.env` in the project directory and set `GEMINI_API_KEY` in that file to your Gemini API key (see `.env.example` for an example)
+5. Remove this line from the app's `build.gradle.kts` file: `signingConfig = signingConfigs.getByName("debugConfig")`
+6. Run the app on an emulator or physical device
