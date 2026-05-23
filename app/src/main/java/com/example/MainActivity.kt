@@ -43,6 +43,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.*
 
 // Data model for File representation
 data class FileItem(
@@ -56,16 +57,18 @@ data class FileItem(
 
 // Clean Minimalism Visual Theme
 object CleanMinimalismTheme {
-    val DeepBackground = Color(0xFFFDFBFF)
-    val SecondaryBackground = Color(0xFFFFFFFF)
-    val SurfaceDark = Color(0xFFF7F9FF)
-    val AccentColor = Color(0xFF005AC1) // Royal Blue
-    val TextPrimary = Color(0xFF1B1B1F)
-    val TextSecondary = Color(0xFF44474E)
-    val CodeBackground = Color(0xFF1C1B1F)
-    val CardBorder = Color(0xFFE3E1E9)
-    val HighlightGreen = Color(0xFF7CB342)
-    val HighlightBlue = Color(0xFF4F5B92)
+    var isDarkTheme by mutableStateOf(true)
+
+    val DeepBackground: Color get() = if (isDarkTheme) Color(0xFF121212) else Color(0xFFFDFBFF)
+    val SecondaryBackground: Color get() = if (isDarkTheme) Color(0xFF1E1E1E) else Color(0xFFFFFFFF)
+    val SurfaceDark: Color get() = if (isDarkTheme) Color(0xFF2C2C2C) else Color(0xFFF7F9FF)
+    val AccentColor: Color get() = if (isDarkTheme) Color(0xFF82B1FF) else Color(0xFF005AC1) // Light Blue / Royal Blue
+    val TextPrimary: Color get() = if (isDarkTheme) Color(0xFFE0E0E0) else Color(0xFF1B1B1F)
+    val TextSecondary: Color get() = if (isDarkTheme) Color(0xFFAAAAAA) else Color(0xFF44474E)
+    val CodeBackground: Color get() = if (isDarkTheme) Color(0xFF121212) else Color(0xFF1C1B1F)
+    val CardBorder: Color get() = if (isDarkTheme) Color(0xFF333333) else Color(0xFFE3E1E9)
+    val HighlightGreen: Color get() = if (isDarkTheme) Color(0xFF81C995) else Color(0xFF7CB342)
+    val HighlightBlue: Color get() = if (isDarkTheme) Color(0xFF8AB4F8) else Color(0xFF4F5B92)
 }
 
 class MainActivity : ComponentActivity() {
@@ -88,6 +91,9 @@ class MainActivity : ComponentActivity() {
 fun RootNexusApp() {
     val context = LocalContext.current
     
+    // Root status
+    var isRootAvailable by remember { mutableStateOf<Boolean?>(null) }
+    
     // Bottom Navigation tab selection
     var currentTab by remember { mutableStateOf("Files") }
     
@@ -100,6 +106,9 @@ fun RootNexusApp() {
     var activeFilePath by remember { mutableStateOf<String?>(null) }
     var activeFileName by remember { mutableStateOf("") }
     var activeFileContent by remember { mutableStateOf("") }
+    
+    // Viewer
+    var fileViewerItem by remember { mutableStateOf<FileItem?>(null) }
     
     // Dialog control states
     var showNewFolderDialog by remember { mutableStateOf(false) }
@@ -114,6 +123,12 @@ fun RootNexusApp() {
 
     // Init directory content
     LaunchedEffect(currentPath) {
+        if (isRootAvailable == null) {
+            withContext(Dispatchers.IO) {
+                val root = RootUtils.isRootAvailable()
+                isRootAvailable = root
+            }
+        }
         fileList = getFilesForPath(currentPath, context)
     }
 
@@ -130,17 +145,32 @@ fun RootNexusApp() {
                 .padding(innerPadding)
                 .background(CleanMinimalismTheme.DeepBackground)
         ) {
-            // Header Bar matching Root Nexus design HTML
+            // Header Bar
             HeaderBar(
-                title = "Root Nexus",
+                title = "Plus Minus File Manager",
                 activeFilePath = activeFilePath ?: currentPath,
                 onSearchClicked = {
                     Toast.makeText(context, "Используйте панель поиска ниже", Toast.LENGTH_SHORT).show()
                 },
                 onMoreClicked = {
-                    Toast.makeText(context, "Разработано для Google AI Studio Build", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Root File Manager PRO", Toast.LENGTH_SHORT).show()
                 }
             )
+
+            if (isRootAvailable == false) {
+                Surface(
+                    color = Color(0xFFBA1A1A).copy(alpha = 0.1f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Внимание: Root-права не предоставлены. Приложение работает в ограниченном режиме песочницы.",
+                        color = Color(0xFFBA1A1A),
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(16.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            }
 
             // Main Content Area based on Selected Tab
             Box(
@@ -148,74 +178,92 @@ fun RootNexusApp() {
                     .weight(1f)
                     .fillMaxWidth()
             ) {
-                when (currentTab) {
-                    "Files" -> {
-                        FileExplorerTab(
-                            currentPath = currentPath,
-                            fileList = fileList,
-                            searchQuery = searchQuery,
-                            onSearchQueryChanged = { searchQuery = it },
-                            onPathChanged = { newPath ->
-                                currentPath = newPath
-                            },
-                            onFileClick = { item ->
-                                if (item.isDirectory) {
-                                    currentPath = item.path
-                                } else {
-                                    // Open file in Editor
-                                    activeFilePath = item.path
-                                    activeFileName = item.name
-                                    activeFileContent = readFileContent(item.path, context)
-                                    currentTab = "Editor"
-                                }
-                            },
-                            onFileLongClick = { item ->
-                                selectedFileForAction = item
-                            },
-                            onCreateFolderClick = { showNewFolderDialog = true },
-                            onCreateFileClick = { showNewFileDialog = true },
-                            onPermissionsClick = {
-                                selectedFileForAction = null
-                                showPermissionsDialog = true
-                            },
-                            onApkClick = {
-                                selectedFileForAction = null
-                                showApkDialog = true
-                            }
-                        )
-                    }
-                    "Editor" -> {
-                        EditorTab(
-                            fileName = activeFileName,
-                            fileContent = activeFileContent,
-                            onContentChanged = { activeFileContent = it },
-                            onSave = {
-                                activeFilePath?.let { path ->
-                                    val success = saveFileContent(path, activeFileContent, context)
-                                    if (success) {
-                                        Toast.makeText(context, "Файл успешно сохранен!", Toast.LENGTH_SHORT).show()
-                                        // Update list
-                                        fileList = getFilesForPath(currentPath, context)
+                androidx.compose.animation.AnimatedContent(
+                    targetState = currentTab,
+                    transitionSpec = {
+                        androidx.compose.animation.core.tween<Float>(300).let {
+                            androidx.compose.animation.fadeIn(it) togetherWith androidx.compose.animation.fadeOut(it)
+                        }
+                    },
+                    label = "Tab Transition"
+                ) { targetTab ->
+                    when (targetTab) {
+                        "Files" -> {
+                            FileExplorerTab(
+                                currentPath = currentPath,
+                                fileList = fileList,
+                                searchQuery = searchQuery,
+                                onSearchQueryChanged = { searchQuery = it },
+                                onPathChanged = { newPath ->
+                                    currentPath = newPath
+                                },
+                                onFileClick = { item ->
+                                    if (item.isDirectory) {
+                                        currentPath = item.path
                                     } else {
-                                        Toast.makeText(context, "Ошибка сохранения файла", Toast.LENGTH_SHORT).show()
+                                        val ext = item.extension.lowercase()
+                                        if (ext in listOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "ico", "svg", "pdf", "mp4", "mp3")) {
+                                            fileViewerItem = item
+                                        } else {
+                                            // Open file in Editor
+                                            activeFilePath = item.path
+                                            activeFileName = item.name
+                                            activeFileContent = readFileContent(item.path, context)
+                                            currentTab = "Editor"
+                                        }
                                     }
-                                } ?: run {
-                                    Toast.makeText(context, "Нет открытого файла для сохранения", Toast.LENGTH_SHORT).show()
+                                },
+                                onFileLongClick = { item ->
+                                    selectedFileForAction = item
+                                },
+                                onCreateFolderClick = { showNewFolderDialog = true },
+                                onCreateFileClick = { showNewFileDialog = true },
+                                onPermissionsClick = {
+                                    selectedFileForAction = null
+                                    showPermissionsDialog = true
+                                },
+                                onApkClick = {
+                                    selectedFileForAction = null
+                                    showApkDialog = true
                                 }
-                            },
-                            onClose = {
-                                activeFilePath = null
-                                activeFileName = ""
-                                activeFileContent = ""
-                                currentTab = "Files"
-                            }
-                        )
-                    }
-                    "Apps" -> {
-                        AppsTab(context = context)
-                    }
-                    "Settings" -> {
-                        SettingsTab(context = context)
+                            )
+                        }
+                        "Editor" -> {
+                            EditorTab(
+                                fileName = activeFileName,
+                                fileContent = activeFileContent,
+                                onContentChanged = { activeFileContent = it },
+                                onSave = {
+                                    activeFilePath?.let { path ->
+                                        val success = saveFileContent(path, activeFileContent, context)
+                                        if (success) {
+                                            Toast.makeText(context, "Файл успешно сохранен!", Toast.LENGTH_SHORT).show()
+                                            // Update list
+                                            fileList = getFilesForPath(currentPath, context)
+                                        } else {
+                                            Toast.makeText(context, "Ошибка сохранения файла", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } ?: run {
+                                        Toast.makeText(context, "Нет открытого файла для сохранения", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                onClose = {
+                                    activeFilePath = null
+                                    activeFileName = ""
+                                    activeFileContent = ""
+                                    currentTab = "Files"
+                                }
+                            )
+                        }
+                        "AI" -> {
+                            AITab(context = context)
+                        }
+                        "Apps" -> {
+                            AppsTab(context = context)
+                        }
+                        "Settings" -> {
+                            SettingsTab(context = context, isRootAvailable = isRootAvailable)
+                        }
                     }
                 }
             }
@@ -459,7 +507,7 @@ fun RootNexusApp() {
         }
     }
 
-    // Simulated Permissions Modifier Dialog
+    // Permissions Modifier Dialog
     if (showPermissionsDialog) {
         var chmodString by remember { mutableStateOf("644") }
         AlertDialog(
@@ -474,14 +522,14 @@ fun RootNexusApp() {
             text = {
                 Column {
                     Text(
-                        "Задайте права доступа в восьмеричном формате для выбранной папки/системы:",
+                        "Задайте права доступа в восьмеричном формате для выбранной папки/файла (${currentPath}):",
                         color = CleanMinimalismTheme.TextSecondary,
                         fontSize = 14.sp
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     OutlinedTextField(
                         value = chmodString,
-                        onValueChange = { if (it.length <= 3) chmodString = it },
+                        onValueChange = { if (it.length <= 4) chmodString = it },
                         placeholder = { Text("644") },
                         label = { Text("Маска прав") },
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -500,7 +548,14 @@ fun RootNexusApp() {
             confirmButton = {
                 Button(
                     onClick = {
-                        Toast.makeText(context, "Эмуляция Root: Права изменены на chmod $chmodString", Toast.LENGTH_LONG).show()
+                        val path = selectedFileForAction?.path ?: currentPath
+                        val success = RootUtils.execute("chmod $chmodString \"$path\"")
+                        if (success) {
+                            Toast.makeText(context, "Права изменены на $chmodString", Toast.LENGTH_SHORT).show()
+                            fileList = getFilesForPath(currentPath, context)
+                        } else {
+                            Toast.makeText(context, "Ошибка изменения прав", Toast.LENGTH_SHORT).show()
+                        }
                         showPermissionsDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = CleanMinimalismTheme.AccentColor)
@@ -516,9 +571,9 @@ fun RootNexusApp() {
         )
     }
 
-    // Simulated APK Installer Dialog
+    // APK Installer Dialog
     if (showApkDialog) {
-        var apkFileName by remember { mutableStateOf("app_release.apk") }
+        var apkFileName by remember { mutableStateOf(currentPath) }
         AlertDialog(
             onDismissRequest = { showApkDialog = false },
             title = {
@@ -539,7 +594,7 @@ fun RootNexusApp() {
                     OutlinedTextField(
                         value = apkFileName,
                         onValueChange = { apkFileName = it },
-                        label = { Text("Имя файла APK") },
+                        label = { Text("Полный путь до APK") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -548,7 +603,17 @@ fun RootNexusApp() {
             confirmButton = {
                 Button(
                     onClick = {
-                        Toast.makeText(context, "Эмуляция Root: Начинается тихая установка $apkFileName...", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "Начинается установка $apkFileName...", Toast.LENGTH_SHORT).show()
+                        CoroutineScope(Dispatchers.IO).launch {
+                            val success = RootUtils.execute("pm install -r \"$apkFileName\"")
+                            withContext(Dispatchers.Main) {
+                                if (success) {
+                                    Toast.makeText(context, "Успешно установлено", Toast.LENGTH_LONG).show()
+                                } else {
+                                    Toast.makeText(context, "Ошибка установки", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        }
                         showApkDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = CleanMinimalismTheme.AccentColor)
@@ -562,6 +627,81 @@ fun RootNexusApp() {
                 }
             }
         )
+    }
+
+    // Universal File Viewer (Image etc)
+    if (fileViewerItem != null) {
+        val item = fileViewerItem!!
+        
+        var safeImagePath by remember { mutableStateOf<String?>(null) }
+        
+        LaunchedEffect(item.path) {
+            val file = java.io.File(item.path)
+            if (file.canRead()) {
+                safeImagePath = item.path
+            } else {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val tempFile = java.io.File(context.cacheDir, "temp_view_${item.name}")
+                    RootUtils.execute("cp \"${item.path}\" \"${tempFile.absolutePath}\"")
+                    RootUtils.execute("chmod 644 \"${tempFile.absolutePath}\"")
+                    safeImagePath = tempFile.absolutePath
+                }
+            }
+        }
+        
+        androidx.compose.ui.window.Dialog(onDismissRequest = { fileViewerItem = null }) {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = CleanMinimalismTheme.SecondaryBackground),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 200.dp, max = 600.dp)
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(CleanMinimalismTheme.SurfaceDark)
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(item.name, color = CleanMinimalismTheme.TextPrimary, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                        IconButton(onClick = { fileViewerItem = null }) {
+                            Icon(Icons.Filled.Close, contentDescription = "Close", tint = CleanMinimalismTheme.TextPrimary)
+                        }
+                    }
+                    
+                    Box(modifier = Modifier.fillMaxSize().weight(1f), contentAlignment = Alignment.Center) {
+                        if (item.extension.lowercase() in listOf("jpg", "jpeg", "png", "gif", "webp", "bmp")) {
+                            if (safeImagePath != null) {
+                                coil.compose.AsyncImage(
+                                    model = java.io.File(safeImagePath!!),
+                                    contentDescription = item.name,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                CircularProgressIndicator(color = CleanMinimalismTheme.AccentColor)
+                            }
+                        } else {
+                            Text(
+                                "Предпросмотр недоступен для: ${item.extension}",
+                                color = CleanMinimalismTheme.TextSecondary,
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        
+        DisposableEffect(item.path) {
+            onDispose {
+                if (safeImagePath?.startsWith(context.cacheDir.absolutePath) == true) {
+                    java.io.File(safeImagePath!!).delete()
+                }
+            }
+        }
     }
 }
 
@@ -724,10 +864,10 @@ fun BottomNavigationBar(
                 onClick = { onTabSelected("Files") }
             )
             NavigationBarItem(
-                label = "Утилиты",
-                icon = Icons.Filled.Apps,
-                isSelected = currentTab == "Apps",
-                onClick = { onTabSelected("Apps") }
+                label = "Анализ",
+                icon = Icons.Filled.AutoAwesome,
+                isSelected = currentTab == "AI",
+                onClick = { onTabSelected("AI") }
             )
             NavigationBarItem(
                 label = "Редактор",
@@ -736,7 +876,7 @@ fun BottomNavigationBar(
                 onClick = { onTabSelected("Editor") }
             )
             NavigationBarItem(
-                label = "Инфо",
+                label = "Настройки",
                 icon = Icons.Filled.Settings,
                 isSelected = currentTab == "Settings",
                 onClick = { onTabSelected("Settings") }
@@ -969,13 +1109,17 @@ fun FileExplorerTab(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = 16.dp)
                     ) {
-                        items(filteredFiles) { fileItem ->
-                            FileListItem(
-                                item = fileItem,
-                                onClick = { onFileClick(fileItem) },
-                                onLongClick = { onFileLongClick(fileItem) }
-                            )
-                            Divider(color = CleanMinimalismTheme.CardBorder.copy(alpha = 0.5f), thickness = (0.5).dp, modifier = Modifier.padding(horizontal = 16.dp))
+                        items(filteredFiles, key = { it.path }) { fileItem ->
+                            Box(modifier = Modifier.animateItemPlacement()) {
+                                Column {
+                                    FileListItem(
+                                        item = fileItem,
+                                        onClick = { onFileClick(fileItem) },
+                                        onLongClick = { onFileLongClick(fileItem) }
+                                    )
+                                    Divider(color = CleanMinimalismTheme.CardBorder.copy(alpha = 0.5f), thickness = (0.5).dp, modifier = Modifier.padding(horizontal = 16.dp))
+                                }
+                            }
                         }
                     }
                 }
@@ -1363,7 +1507,7 @@ fun AppsTab(context: Context) {
 // -------------------------------------------------------------
 
 @Composable
-fun SettingsTab(context: Context) {
+fun SettingsTab(context: Context, isRootAvailable: Boolean?) {
     val scrollState = rememberScrollState()
     Column(
         modifier = Modifier
@@ -1373,24 +1517,111 @@ fun SettingsTab(context: Context) {
     ) {
         // App Info Header
         Text(
-            text = "Информация о Root Commander",
+            text = "Информация о приложении",
             color = CleanMinimalismTheme.TextPrimary,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 8.dp)
         )
         Text(
-            text = "Root Nexus - супербыстрый, минималистичный диспетчер для работы с локальной файловой системой sandbox и root-скриптами.",
+            text = "Plus Minus File Manager - супербыстрый, минималистичный диспетчер для работы с локальной файловой системой и root-доступом.\nТворец: Plus Minus",
             color = CleanMinimalismTheme.TextSecondary,
             fontSize = 13.sp,
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
+        // Settings / Theme
+        Card(
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = CleanMinimalismTheme.SecondaryBackground),
+            border = BorderStroke(1.dp, CleanMinimalismTheme.CardBorder),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text("Внешний вид (Тема)", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = CleanMinimalismTheme.TextPrimary)
+                    Text("Темный или светлый режим", fontSize = 11.sp, color = CleanMinimalismTheme.TextSecondary)
+                }
+                androidx.compose.material3.Switch(
+                    checked = CleanMinimalismTheme.isDarkTheme,
+                    onCheckedChange = { CleanMinimalismTheme.isDarkTheme = it },
+                    colors = androidx.compose.material3.SwitchDefaults.colors(
+                        checkedThumbColor = CleanMinimalismTheme.AccentColor,
+                        checkedTrackColor = CleanMinimalismTheme.AccentColor.copy(alpha = 0.5f)
+                    )
+                )
+            }
+        }
+
+        // OTA BLOCKER (Pixel)
+        Text(
+            text = "Google Pixel Инструменты",
+            color = CleanMinimalismTheme.TextPrimary,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(vertical = 8.dp)
+        )
+        Card(
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = CleanMinimalismTheme.SecondaryBackground),
+            border = BorderStroke(1.dp, CleanMinimalismTheme.AccentColor),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
+                .clickable {
+                    if (isRootAvailable == true) {
+                        Toast.makeText(context, "Применение блокировки OTA...", Toast.LENGTH_SHORT).show()
+                        CoroutineScope(Dispatchers.IO).launch {
+                            val commands = listOf(
+                                "pm disable-user --user 0 com.google.android.gms/.update.SystemUpdateActivity",
+                                "pm disable com.google.android.gms/.update.SystemUpdateActivity",
+                                "pm disable com.google.android.gms/com.google.android.gms.update.SystemUpdateService",
+                                "pm disable com.google.android.gms/com.google.android.gms.update.SystemUpdateService\$Receiver",
+                                "pm disable com.google.android.gms/com.google.android.gms.update.SystemUpdateService\$SecretCodeReceiver",
+                                "pm disable com.android.dynsystem",
+                                "rm -rf /data/ota_package/*"
+                            )
+                            var successCount = 0
+                            for (cmd in commands) {
+                                if (RootUtils.execute(cmd)) successCount++
+                            }
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "OTA Заблокировано! Успешных команд: $successCount из ${commands.size}", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    } else {
+                        Toast.makeText(context, "Требуются Root-права", Toast.LENGTH_SHORT).show()
+                    }
+                }
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.SecurityUpdateWarning, contentDescription = null, tint = CleanMinimalismTheme.AccentColor)
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text("Блокировка OTA Обновлений Google Pixel", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = CleanMinimalismTheme.TextPrimary)
+                    Text("Блокировка для Android 14, 15, 16, 17 через отключение сервисов Google Play.", fontSize = 11.sp, color = CleanMinimalismTheme.TextSecondary, lineHeight = 14.sp)
+                }
+            }
+        }
+
         // DOWNLOAD GUIDE CARD (Addresses user's "Как его теперь скачать" request directly)
         Card(
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = CleanMinimalismTheme.SurfaceDark),
-            border = BorderStroke(1.dp, CleanMinimalismTheme.AccentColor),
+            border = BorderStroke(1.dp, CleanMinimalismTheme.CardBorder),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 16.dp)
@@ -1402,7 +1633,7 @@ fun SettingsTab(context: Context) {
                     Icon(Icons.Filled.Download, contentDescription = null, tint = CleanMinimalismTheme.AccentColor)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Инструкция: Как скачать приложение",
+                        text = "Инструкция: Как скачать исходники / APK",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = CleanMinimalismTheme.TextPrimary
@@ -1416,10 +1647,8 @@ fun SettingsTab(context: Context) {
                     lineHeight = 18.sp
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                BulletPoint("1. Нажмите на иконку шестеренки (Settings / Настройки) в правом верхнем углу интерфейса AI Studio.")
-                BulletPoint("2. Чтобы получить исходный код: Нажмите кнопку 'Export as ZIP' для скачивания архива всего Android-проекта.")
-                BulletPoint("3. Чтобы получить APK-файл для телефона: Нажмите на сборку / генерацию файла сборки в меню, и вы сможете скачать готовый файл.")
-                BulletPoint("4. Также у вас есть панель файлового менеджера cбоку, где можно скачать отдельные создаваемые файлы конфигурации!")
+                BulletPoint("1. Нажмите на иконку 'Export as ZIP' наверху.")
+                BulletPoint("2. Чтобы получить APK файла нажмите 'Generate APK'.")
             }
         }
 
@@ -1453,15 +1682,26 @@ fun SettingsTab(context: Context) {
             ) {
                 Column {
                     Text("Режим Суперпользователя (Root Status)", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = CleanMinimalismTheme.TextPrimary)
-                    Text("Безопасное окружение Google AI Sandbox", fontSize = 11.sp, color = CleanMinimalismTheme.TextSecondary)
+                    Text("Необходим для большинства системных операций", fontSize = 11.sp, color = CleanMinimalismTheme.TextSecondary)
                 }
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(CleanMinimalismTheme.HighlightGreen.copy(alpha = 0.15f))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text("АКТИВЕН", color = CleanMinimalismTheme.HighlightGreen, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                if (isRootAvailable == true) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(CleanMinimalismTheme.HighlightGreen.copy(alpha = 0.15f))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text("АКТИВЕН", color = CleanMinimalismTheme.HighlightGreen, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFFBA1A1A).copy(alpha = 0.15f))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text("НЕ ДОСТУПЕН", color = Color(0xFFBA1A1A), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
@@ -1521,155 +1761,193 @@ fun StorageSpaceCard() {
 }
 
 // -------------------------------------------------------------
-// HELPER LOGIC / SANDBOX IO SIMULATORS
+// HELPER LOGIC / REAL ROOT I/O
 // -------------------------------------------------------------
+
+object RootUtils {
+    fun isRootAvailable(): Boolean {
+        var process: java.lang.Process? = null
+        return try {
+            process = Runtime.getRuntime().exec(arrayOf("su", "-c", "echo root_test"))
+            val reader = java.io.BufferedReader(java.io.InputStreamReader(process.inputStream))
+            val output = reader.readLine()
+            process.waitFor()
+            output == "root_test"
+        } catch (e: Exception) {
+            false
+        } finally {
+            process?.destroy()
+        }
+    }
+
+    fun executeWithOutput(command: String): String {
+        var process: java.lang.Process? = null
+        return try {
+            process = Runtime.getRuntime().exec(arrayOf("su", "-c", command))
+            val reader = java.io.BufferedReader(java.io.InputStreamReader(process.inputStream))
+            val output = reader.readText()
+            process.waitFor()
+            output
+        } catch (e: Exception) {
+            e.printStackTrace()
+            ""
+        } finally {
+            process?.destroy()
+        }
+    }
+
+    fun execute(command: String): Boolean {
+        var process: java.lang.Process? = null
+        return try {
+            process = Runtime.getRuntime().exec(arrayOf("su", "-c", command))
+            process.waitFor()
+            process.exitValue() == 0
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        } finally {
+            process?.destroy()
+        }
+    }
+}
 
 fun getFilesForPath(path: String, context: Context): List<FileItem> {
     val items = mutableListOf<FileItem>()
     try {
-        val rootDir = context.getExternalFilesDir(null) ?: context.filesDir
-        val currentDir = if (path == "/") rootDir else File(path)
+        val safePath = if (path.endsWith("/")) path else "$path/"
         
-        // Ensure directory exists
-        if (!currentDir.exists()) {
-            currentDir.mkdirs()
-        }
-
-        // Add some default demo files inside root if it's completely empty
-        val list = currentDir.listFiles()
-        if (list == null || list.isEmpty()) {
-            if (currentDir.absolutePath == rootDir.absolutePath) {
-                // Generate elegant default config files for Root commander
-                val hostsFile = File(rootDir, "hosts.conf")
-                if (!hostsFile.exists()) {
-                    hostsFile.writeText(
-                        "# Localhost configuration\n" +
-                        "127.0.0.1   localhost\n" +
-                        "::1         localhost\n\n" +
-                        "# Blocked Ads via Root Nexus\n" +
-                        "0.0.0.0     ads.tracker.com\n" +
-                        "0.0.0.0     metrics.app.io\n"
+        // Use Java File API if possible (faster), fallback to su if permission denied.
+        val dir = File(safePath)
+        val files = dir.listFiles()
+        if (files != null) {
+            files.forEach { file ->
+                items.add(
+                    FileItem(
+                        name = file.name,
+                        path = file.absolutePath,
+                        isDirectory = file.isDirectory,
+                        size = file.length(),
+                        lastModified = file.lastModified(),
+                        extension = file.extension
                     )
-                }
-                val systemPropFile = File(rootDir, "build.prop")
-                if (!systemPropFile.exists()) {
-                    systemPropFile.writeText(
-                        "# system.prop for Root Nexus\n" +
-                        "ro.secure=0\n" +
-                        "ro.debuggable=1\n" +
-                        "ro.build.type=userdebug\n" +
-                        "persist.sys.usb.config=adb\n"
-                    )
-                }
-                // Also create an adblock directory
-                val adblockDir = File(rootDir, "adblock_rules")
-                if (!adblockDir.exists()) {
-                    adblockDir.mkdirs()
-                    File(adblockDir, "blacklist.txt").writeText("doubleclick.net\nadservice.google.com\n")
+                )
+            }
+        } else {
+            // Permission denied, try with root
+            val output = RootUtils.executeWithOutput("ls -A -l \"$safePath\"")
+            val lines = output.split("\n")
+            
+            for (line in lines) {
+                val trimmed = line.trim()
+                if (trimmed.isEmpty() || trimmed.startsWith("total ")) continue
+                
+                val isDir = trimmed.startsWith("d")
+                val isSymlink = trimmed.startsWith("l")
+                
+                // Fallback parsing for typical ls -l
+                // drwxr-xr-x 2 root root 4096 2023-01-01 12:00 my_folder
+                val parts = trimmed.split(Regex("\\s+"), limit = 8)
+                if (parts.size >= 8 || parts.size == 7) { // 7 handles missing link count (toybox/toolbox diffs)
+                    val namePart = parts.last()
+                    var name = namePart
+                    if (isSymlink && name.contains(" -> ")) {
+                        name = name.substringBefore(" -> ")
+                    }
+                    if (name == "." || name == "..") continue
+                    
+                    val sizeIndex = if (parts.size >= 8) 4 else 3
+                    val size = parts[sizeIndex].toLongOrNull() ?: 0L
+                    
+                    val ext = if (name.contains(".")) name.substringAfterLast('.') else ""
+                    items.add(FileItem(name, safePath + name, isDir || isSymlink, size, 0L, ext))
+                } else if (parts.size > 1) {
+                     // desperate fallback
+                     var name = parts.last()
+                     if (isSymlink && name.contains(" -> ")) {
+                         name = name.substringBefore(" -> ")
+                     }
+                     if (name != "." && name != "..") {
+                         val ext = if (name.contains(".")) name.substringAfterLast('.') else ""
+                         items.add(FileItem(name, safePath + name, isDir || isSymlink, 0L, 0L, ext))
+                     }
                 }
             }
-        }
-
-        currentDir.listFiles()?.forEach { file ->
-            items.add(
-                FileItem(
-                    name = file.name,
-                    path = file.absolutePath,
-                    isDirectory = file.isDirectory,
-                    size = file.length(),
-                    lastModified = file.lastModified(),
-                    extension = file.extension
-                )
-            )
         }
     } catch (e: Exception) {
         e.printStackTrace()
     }
-    // Sort directories first, then files alphabetically
     return items.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }))
 }
 
 fun readFileContent(path: String, context: Context): String {
     return try {
         val file = File(path)
-        if (file.exists() && file.isFile) {
+        if (file.canRead()) {
             file.readText()
         } else {
-            ""
+            // Need root
+            RootUtils.executeWithOutput("cat \"$path\"")
         }
     } catch (e: Exception) {
-        e.printStackTrace()
-        "Ошибка чтения файла: ${e.localizedMessage}"
+        RootUtils.executeWithOutput("cat \"$path\"")
     }
 }
 
 fun saveFileContent(path: String, content: String, context: Context): Boolean {
     return try {
         val file = File(path)
-        file.writeText(content)
-        true
+        if (file.canWrite()) {
+            file.writeText(content)
+            true
+        } else {
+            // Need root
+            val tempFile = File(context.cacheDir, "root_nexus_temp")
+            tempFile.writeText(content)
+            val success = RootUtils.execute("cp \"${tempFile.absolutePath}\" \"$path\"")
+            tempFile.delete()
+            success
+        }
     } catch (e: Exception) {
         e.printStackTrace()
-        false
+        val tempFile = File(context.cacheDir, "root_nexus_temp")
+        tempFile.writeText(content)
+        val success = RootUtils.execute("cp \"${tempFile.absolutePath}\" \"$path\"")
+        tempFile.delete()
+        success
     }
 }
 
 fun createFolder(currentPath: String, name: String, context: Context): Boolean {
-    return try {
-        val rootDir = context.getExternalFilesDir(null) ?: context.filesDir
-        val baseDir = if (currentPath == "/") rootDir else File(currentPath)
-        val newFolder = File(baseDir, name)
-        if (!newFolder.exists()) {
-            newFolder.mkdirs()
-        } else {
-            false
-        }
-    } catch (e: Exception) {
-        e.printStackTrace()
-        false
-    }
+    val dir = File(currentPath, name)
+    if (dir.mkdirs()) return true
+    return RootUtils.execute("mkdir -p \"${dir.absolutePath}\"")
 }
 
 fun createFile(currentPath: String, name: String, context: Context): Boolean {
+    val file = File(currentPath, name)
     return try {
-        val rootDir = context.getExternalFilesDir(null) ?: context.filesDir
-        val baseDir = if (currentPath == "/") rootDir else File(currentPath)
-        val newFile = File(baseDir, name)
-        if (!newFile.exists()) {
-            newFile.createNewFile()
-        } else {
-            false
-        }
+        if (file.createNewFile()) true else RootUtils.execute("touch \"${file.absolutePath}\"")
     } catch (e: Exception) {
-        e.printStackTrace()
-        false
+         RootUtils.execute("touch \"${file.absolutePath}\"")
     }
 }
 
 fun renameFile(path: String, newName: String, context: Context): Boolean {
-    return try {
-        val file = File(path)
-        val parent = file.parentFile
-        val destination = File(parent, newName)
-        file.renameTo(destination)
-    } catch (e: Exception) {
-        e.printStackTrace()
-        false
-    }
+    val file = File(path)
+    val parent = file.parent ?: "/"
+    val destination = File(parent, newName)
+    if (file.renameTo(destination)) return true
+    return RootUtils.execute("mv \"$path\" \"${destination.absolutePath}\"")
 }
 
 fun deleteFileOrDir(path: String, context: Context): Boolean {
-    return try {
-        val file = File(path)
-        if (file.isDirectory) {
-            file.deleteRecursively()
-        } else {
-            file.delete()
-        }
-    } catch (e: Exception) {
-        e.printStackTrace()
-        false
+    val file = File(path)
+    if (file.isDirectory) {
+        if (file.deleteRecursively()) return true
+    } else {
+        if (file.delete()) return true
     }
+    return RootUtils.execute("rm -rf \"$path\"")
 }
 
 fun getFileIcon(item: FileItem): androidx.compose.ui.graphics.vector.ImageVector {

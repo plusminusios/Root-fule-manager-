@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Root Commander</string>
+    <string name="app_name">Plus Minus File Manager</string>
     <string name="search_hint">Поиск файлов...</string>
     <string name="create_folder">Создать папку</string>
     <string name="create_file">Создать файл</string>
