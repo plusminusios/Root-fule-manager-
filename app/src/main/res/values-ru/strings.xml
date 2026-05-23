@@ -38,4 +38,8 @@
     <string name="root_intelligence">Root Intelligence</string>
     <string name="ai_login_desc">Введите ваш API Key от Google AI Studio или используйте Google Login.</string>
     <string name="github_repo">GitHub Репозиторий</string>
+    <string name="liquid_glass">Эффект Liquid Glass</string>
+    <string name="liquid_glass_desc">Применить эффект размытия стекла к компонентам</string>
+    <string name="monet_theme">Monet (Material You)</string>
+    <string name="monet_theme_desc">Динамические цвета на основе обоев</string>
 </resources>

@@ -38,4 +38,8 @@
     <string name="root_intelligence">Root Intelligence</string>
     <string name="ai_login_desc">Enter your API Key from Google AI Studio or use Google Login.</string>
     <string name="github_repo">GitHub Repository</string>
+    <string name="liquid_glass">Liquid Glass Effect</string>
+    <string name="liquid_glass_desc">Apply glass-blur effect to UI components</string>
+    <string name="monet_theme">Monet (Material You)</string>
+    <string name="monet_theme_desc">Apply dynamic colors based on your wallpaper</string>
 </resources>

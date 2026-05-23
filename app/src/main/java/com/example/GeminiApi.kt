@@ -40,7 +40,7 @@ data class Candidate(
 )
 
 interface GeminiApiService {
-    @POST("v1beta/models/gemini-1.5-flash:generateContent")
+    @POST("v1beta/models/gemini-3.5-flash:generateContent")
     suspend fun generateContent(
         @Query("key") apiKey: String,
         @Body request: GenerateContentRequest
@@ -68,16 +68,15 @@ object RetrofitClient {
 }
 
 suspend fun analyzeErrorLog(logText: String, apiKey: String): String = withContext(Dispatchers.IO) {
-    val finalKey = if (apiKey == "AIStudio_Google_Logged_In_Token") {
-        // Here we could use a restricted key or server-side capability
-        // For now, let's assume we use the one from secrets or same key logic
-        apiKey 
+    val finalKey = if (apiKey == "AIStudio_Google_Logged_In_Token" || apiKey.isEmpty()) {
+        val buildKey = BuildConfig.GEMINI_API_KEY
+        if (buildKey == "YOUR_API_KEY_HERE" || buildKey.isEmpty()) "" else buildKey
     } else {
         apiKey
     }
     
-    if (finalKey.isEmpty() || finalKey == "YOUR_API_KEY_HERE") {
-        return@withContext "Ошибка: Пожалуйста, войдите, чтобы использовать функции анализа."
+    if (finalKey.isEmpty()) {
+        return@withContext "Ошибка: Пожалуйста, введите API ключ в настройках или войдите для активации ИИ."
     }
     
     val request = GenerateContentRequest(

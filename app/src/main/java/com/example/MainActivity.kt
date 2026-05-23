@@ -56,6 +56,19 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.*
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialException
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.inset
+import android.os.Build
 
 @Composable
 fun t(ru: String, en: String): String {
@@ -80,6 +93,8 @@ data class FileItem(
 // Clean Minimalism Visual Theme
 object CleanMinimalismTheme {
     var isDarkTheme by mutableStateOf(true)
+    var isLiquidGlassEnabled by mutableStateOf(true)
+    var isMonetEnabled by mutableStateOf(false)
 
     val DeepBackground: Color get() = if (isDarkTheme) Color(0xFF121212) else Color(0xFFFDFBFF)
     val SecondaryBackground: Color get() = if (isDarkTheme) Color(0xFF1E1E1E) else Color(0xFFFFFFFF)
@@ -93,14 +108,98 @@ object CleanMinimalismTheme {
     val HighlightBlue: Color get() = if (isDarkTheme) Color(0xFF8AB4F8) else Color(0xFF4F5B92)
 }
 
+@Composable
+fun GlassSurface(
+    modifier: Modifier = Modifier,
+    shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(12.dp),
+    content: @Composable () -> Unit
+) {
+    if (CleanMinimalismTheme.isLiquidGlassEnabled) {
+        val dark = CleanMinimalismTheme.isDarkTheme
+        Surface(
+            modifier = modifier
+                .drawBehind {
+                    // Subtle glass-like border
+                    drawRect(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = if (dark) 0.15f else 0.4f),
+                                Color.Transparent,
+                                Color.Black.copy(alpha = if (dark) 0.1f else 0.05f)
+                            )
+                        ),
+                        alpha = 0.5f
+                    )
+                },
+            color = MaterialTheme.colorScheme.surface.copy(alpha = if (dark) 0.65f else 0.85f),
+            shape = shape,
+            border = BorderStroke(
+                width = 0.5.dp,
+                brush = SolidColor(if (dark) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.1f))
+            ),
+            tonalElevation = 8.dp,
+            shadowElevation = if (dark) 2.dp else 4.dp
+        ) {
+            content()
+        }
+    } else {
+        Surface(
+            modifier = modifier,
+            color = MaterialTheme.colorScheme.surface,
+            shape = shape,
+            border = BorderStroke(0.5.dp, CleanMinimalismTheme.CardBorder),
+            tonalElevation = 2.dp
+        ) {
+            content()
+        }
+    }
+}
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Persistent theme loading could go here
+        val prefs = getSharedPreferences("theme_prefs", Context.MODE_PRIVATE)
+        CleanMinimalismTheme.isDarkTheme = prefs.getBoolean("dark_theme", true)
+        CleanMinimalismTheme.isLiquidGlassEnabled = prefs.getBoolean("liquid_glass", true)
+        CleanMinimalismTheme.isMonetEnabled = prefs.getBoolean("monet", false)
+        
         setContent {
-            MaterialTheme {
+            val darkTheme = CleanMinimalismTheme.isDarkTheme
+            val useMonet = CleanMinimalismTheme.isMonetEnabled
+            val context = LocalContext.current
+            
+            val colorScheme = when {
+                useMonet && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+                    if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+                }
+                darkTheme -> darkColorScheme(
+                    primary = CleanMinimalismTheme.AccentColor,
+                    onPrimary = Color.Black,
+                    surface = CleanMinimalismTheme.SecondaryBackground,
+                    onSurface = CleanMinimalismTheme.TextPrimary,
+                    background = CleanMinimalismTheme.DeepBackground,
+                    onBackground = CleanMinimalismTheme.TextPrimary,
+                    surfaceVariant = CleanMinimalismTheme.SurfaceDark,
+                    outline = CleanMinimalismTheme.CardBorder
+                )
+                else -> lightColorScheme(
+                    primary = CleanMinimalismTheme.AccentColor,
+                    onPrimary = Color.White,
+                    surface = CleanMinimalismTheme.SecondaryBackground,
+                    onSurface = CleanMinimalismTheme.TextPrimary,
+                    background = CleanMinimalismTheme.DeepBackground,
+                    onBackground = CleanMinimalismTheme.TextPrimary,
+                    surfaceVariant = CleanMinimalismTheme.SurfaceDark,
+                    outline = CleanMinimalismTheme.CardBorder
+                )
+            }
+            
+            MaterialTheme(colorScheme = colorScheme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = CleanMinimalismTheme.DeepBackground
+                    color = MaterialTheme.colorScheme.background
                 ) {
                     RootManagerApp()
                 }
@@ -1748,9 +1847,11 @@ fun AppsTab(context: Context) {
                 CircularProgressIndicator(color = CleanMinimalismTheme.AccentColor)
             }
         } else {
-            val filteredApps = installedApps.filter { 
-                it.name.contains(searchQuery, ignoreCase = true) || 
-                it.packageName.contains(searchQuery, ignoreCase = true)
+            val filteredApps = remember(installedApps, searchQuery) {
+                installedApps.filter { 
+                    it.name.contains(searchQuery, ignoreCase = true) || 
+                    it.packageName.contains(searchQuery, ignoreCase = true)
+                }
             }
             
             LazyColumn(
@@ -1818,11 +1919,9 @@ fun getNetworkInfo(context: Context): NetworkInfo {
 fun AppItemCard(app: AppEntry, context: Context) {
     var expanded by remember { mutableStateOf(false) }
     
-    Card(
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = CleanMinimalismTheme.SurfaceDark),
-        border = BorderStroke(1.dp, CleanMinimalismTheme.CardBorder),
-        modifier = Modifier.fillMaxWidth()
+    GlassSurface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp)
     ) {
         Column(modifier = Modifier.animateContentSize()) {
             Row(
@@ -2012,11 +2111,69 @@ fun SettingsTab(context: Context, isRootAvailable: Boolean?) {
                     }
                     androidx.compose.material3.Switch(
                         checked = CleanMinimalismTheme.isDarkTheme,
-                        onCheckedChange = { CleanMinimalismTheme.isDarkTheme = it },
+                        onCheckedChange = { 
+                            CleanMinimalismTheme.isDarkTheme = it
+                            context.getSharedPreferences("theme_prefs", Context.MODE_PRIVATE).edit().putBoolean("dark_theme", it).apply()
+                        },
                         colors = androidx.compose.material3.SwitchDefaults.colors(
                             checkedThumbColor = CleanMinimalismTheme.AccentColor,
                             checkedTrackColor = CleanMinimalismTheme.AccentColor.copy(alpha = 0.5f)
                         )
+                    )
+                }
+                
+                Divider(color = CleanMinimalismTheme.CardBorder, thickness = 0.5.dp, modifier = Modifier.padding(horizontal = 16.dp))
+
+                // Liquid Glass Toggle
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.liquid_glass), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = CleanMinimalismTheme.TextPrimary)
+                        Text(stringResource(R.string.liquid_glass_desc), fontSize = 11.sp, color = CleanMinimalismTheme.TextSecondary)
+                    }
+                    androidx.compose.material3.Switch(
+                        checked = CleanMinimalismTheme.isLiquidGlassEnabled,
+                        onCheckedChange = { 
+                            CleanMinimalismTheme.isLiquidGlassEnabled = it
+                            context.getSharedPreferences("theme_prefs", Context.MODE_PRIVATE).edit().putBoolean("liquid_glass", it).apply()
+                        },
+                        colors = androidx.compose.material3.SwitchDefaults.colors(
+                            checkedThumbColor = CleanMinimalismTheme.AccentColor,
+                            checkedTrackColor = CleanMinimalismTheme.AccentColor.copy(alpha = 0.5f)
+                        )
+                    )
+                }
+
+                Divider(color = CleanMinimalismTheme.CardBorder, thickness = 0.5.dp, modifier = Modifier.padding(horizontal = 16.dp))
+
+                // Monet Toggle (Material You)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.monet_theme), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = CleanMinimalismTheme.TextPrimary)
+                        Text(stringResource(R.string.monet_theme_desc), fontSize = 11.sp, color = CleanMinimalismTheme.TextSecondary)
+                    }
+                    androidx.compose.material3.Switch(
+                        checked = CleanMinimalismTheme.isMonetEnabled,
+                        onCheckedChange = { 
+                            CleanMinimalismTheme.isMonetEnabled = it
+                            context.getSharedPreferences("theme_prefs", Context.MODE_PRIVATE).edit().putBoolean("monet", it).apply()
+                        },
+                        colors = androidx.compose.material3.SwitchDefaults.colors(
+                            checkedThumbColor = CleanMinimalismTheme.AccentColor,
+                            checkedTrackColor = CleanMinimalismTheme.AccentColor.copy(alpha = 0.5f)
+                        ),
+                        enabled = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
                     )
                 }
                 

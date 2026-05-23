@@ -36,6 +36,3 @@ Visit the official repository for updates and source code: [github.com/plusminus
 ## Disclaimer
 
 Root File Manager is a powerful tool. Modifying system files can be dangerous and may lead to a bootloop. Always backup your data before making changes to `/system` or `/data` partitions. The developer is not responsible for any damage caused to your device.
-my telegram channel: https://t.me/PMFileManager
-creator: https://t.me/kyu0tud3
-developer: https://t.me/tetchtoker
