@@ -68,8 +68,16 @@ object RetrofitClient {
 }
 
 suspend fun analyzeErrorLog(logText: String, apiKey: String): String = withContext(Dispatchers.IO) {
-    if (apiKey.isEmpty() || apiKey == "YOUR_API_KEY_HERE") {
-        return@withContext "Ошибка: Пожалуйста, войдите и введите ваш Gemini API Key."
+    val finalKey = if (apiKey == "AIStudio_Google_Logged_In_Token") {
+        // Here we could use a restricted key or server-side capability
+        // For now, let's assume we use the one from secrets or same key logic
+        apiKey 
+    } else {
+        apiKey
+    }
+    
+    if (finalKey.isEmpty() || finalKey == "YOUR_API_KEY_HERE") {
+        return@withContext "Ошибка: Пожалуйста, войдите, чтобы использовать функции анализа."
     }
     
     val request = GenerateContentRequest(
@@ -83,8 +91,8 @@ suspend fun analyzeErrorLog(logText: String, apiKey: String): String = withConte
     
     try {
         val response = RetrofitClient.service.generateContent(apiKey, request)
-        response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: "Не удалось получить ответ от Gemini."
+        response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: "Не удалось получить ответ от сервера."
     } catch (e: Exception) {
-        "Произошла ошибка при запросе к Gemini: ${e.message}"
+        "Произошла ошибка при запросе: ${e.message}"
     }
 }

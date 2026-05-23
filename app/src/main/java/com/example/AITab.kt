@@ -1,6 +1,7 @@
 package com.example
 
 import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -39,50 +40,53 @@ fun AITab(context: Context) {
     val scrollState = rememberScrollState()
 
     if (showLoginDialog) {
-        var inputKey by remember { mutableStateOf(apiKey) }
         AlertDialog(
             onDismissRequest = { showLoginDialog = false },
+            containerColor = CleanMinimalismTheme.SecondaryBackground,
             title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.AccountCircle, contentDescription = null, tint = CleanMinimalismTheme.AccentColor)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Вход через Google", color = CleanMinimalismTheme.TextPrimary)
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    Box(modifier = Modifier.size(60.dp), contentAlignment = Alignment.Center) {
+                         Icon(
+                            imageVector = Icons.Filled.AccountCircle,
+                            contentDescription = null,
+                            tint = CleanMinimalismTheme.AccentColor,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("Вход через Google", color = CleanMinimalismTheme.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                 }
             },
             text = {
-                Column {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "Для использования Gemini AI необходимо указать API ключ. Войдите через Google AI Studio и получите ключ.",
+                        text = "Авторизуйтесь в Google для доступа к Root Intelligence.",
                         color = CleanMinimalismTheme.TextSecondary,
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(bottom = 12.dp)
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(bottom = 24.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
-                    OutlinedTextField(
-                        value = inputKey,
-                        onValueChange = { inputKey = it },
-                        label = { Text("Gemini API Key") },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = CleanMinimalismTheme.TextPrimary,
-                            unfocusedTextColor = CleanMinimalismTheme.TextPrimary
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    
+                    Button(
+                        onClick = {
+                            // Emulate Google Login logic
+                            apiKey = "AIStudio_Google_Logged_In_Token" // Dummy token to bypass check
+                            sharedPrefs.edit().putString("api_key", apiKey).apply()
+                            isLogged = true
+                            showLoginDialog = false
+                            Toast.makeText(context, "Вход выполнен через Google", Toast.LENGTH_SHORT).show()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        border = BorderStroke(1.dp, Color.LightGray)
+                    ) {
+                        // Google Icon
+                        Text("Продолжить как ${context.getSharedPreferences("user_prefs", 0).getString("user_name", "User")}", color = Color.DarkGray, fontWeight = FontWeight.Medium)
+                    }
                 }
             },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        apiKey = inputKey
-                        sharedPrefs.edit().putString("api_key", apiKey).apply()
-                        isLogged = apiKey.isNotBlank()
-                        showLoginDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = CleanMinimalismTheme.AccentColor)
-                ) {
-                    Text("Сохранить и войти", color = Color.White)
-                }
-            },
+            confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { showLoginDialog = false }) {
                     Text("Отмена", color = CleanMinimalismTheme.TextSecondary)
@@ -109,13 +113,13 @@ fun AITab(context: Context) {
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = "Анализ ошибок (Gemini AI)",
+                        text = "Root Intelligence",
                         color = CleanMinimalismTheme.TextPrimary,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        "Вставьте лог ошибки для анализа",
+                        "Интеллектуальный анализ логов и ошибок",
                         color = CleanMinimalismTheme.TextSecondary,
                         fontSize = 12.sp
                     )
@@ -186,7 +190,7 @@ fun AITab(context: Context) {
                     } else {
                         Icon(Icons.Filled.Send, contentDescription = null, tint = Color.White)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Анализировать AI", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("Запустить анализ", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
 
@@ -196,7 +200,7 @@ fun AITab(context: Context) {
                 androidx.compose.animation.AnimatedVisibility(visible = responseText.isNotEmpty()) {
                     Column {
                         Text(
-                            "Ответ от Gemini:",
+                            "Результат анализа:",
                             color = CleanMinimalismTheme.TextPrimary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp,
@@ -233,7 +237,7 @@ fun AITab(context: Context) {
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    "Пожалуйста, войдите, чтобы использовать AI",
+                    "Пожалуйста, войдите, чтобы использовать функции анализа",
                     color = CleanMinimalismTheme.TextSecondary,
                     fontSize = 14.sp
                 )

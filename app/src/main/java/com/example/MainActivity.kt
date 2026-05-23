@@ -1,8 +1,13 @@
 package com.example
 
 import android.content.Context
+import android.content.Intent
+import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -26,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
@@ -80,7 +86,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = CleanMinimalismTheme.DeepBackground
                 ) {
-                    RootNexusApp()
+                    RootManagerApp()
                 }
             }
         }
@@ -88,7 +94,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun RootNexusApp() {
+fun RootManagerApp() {
     val context = LocalContext.current
     
     // Root status
@@ -110,6 +116,8 @@ fun RootNexusApp() {
     // Viewer
     var fileViewerItem by remember { mutableStateOf<FileItem?>(null) }
     
+    var showAboutDialog by remember { mutableStateOf(false) }
+    
     // Dialog control states
     var showNewFolderDialog by remember { mutableStateOf(false) }
     var showNewFileDialog by remember { mutableStateOf(false) }
@@ -117,6 +125,7 @@ fun RootNexusApp() {
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     var showPermissionsDialog by remember { mutableStateOf(false) }
     var showApkDialog by remember { mutableStateOf(false) }
+    var showShExecuteDialog by remember { mutableStateOf(false) }
     
     // File selected for context menu actions
     var selectedFileForAction by remember { mutableStateOf<FileItem?>(null) }
@@ -147,13 +156,13 @@ fun RootNexusApp() {
         ) {
             // Header Bar
             HeaderBar(
-                title = "Plus Minus File Manager",
+                title = "Root File Manager",
                 activeFilePath = activeFilePath ?: currentPath,
                 onSearchClicked = {
                     Toast.makeText(context, "Используйте панель поиска ниже", Toast.LENGTH_SHORT).show()
                 },
                 onMoreClicked = {
-                    Toast.makeText(context, "Root File Manager PRO", Toast.LENGTH_SHORT).show()
+                    showAboutDialog = true
                 }
             )
 
@@ -202,7 +211,10 @@ fun RootNexusApp() {
                                         currentPath = item.path
                                     } else {
                                         val ext = item.extension.lowercase()
-                                        if (ext in listOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "ico", "svg", "pdf", "mp4", "mp3")) {
+                                        if (ext == "sh") {
+                                            selectedFileForAction = item
+                                            showShExecuteDialog = true
+                                        } else if (ext in listOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "ico", "svg", "pdf", "mp4", "mp3")) {
                                             fileViewerItem = item
                                         } else {
                                             // Open file in Editor
@@ -300,6 +312,24 @@ fun RootNexusApp() {
                         Icon(Icons.Filled.Edit, contentDescription = null, tint = Color.White)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Открыть в Редакторе", color = Color.White)
+                    }
+
+                    Button(
+                        onClick = {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            val clip = android.content.ClipData.newPlainText("File Path", fileItem.path)
+                            clipboard.setPrimaryClip(clip)
+                            Toast.makeText(context, "Путь скопирован", Toast.LENGTH_SHORT).show()
+                            selectedFileForAction = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = CleanMinimalismTheme.SurfaceDark),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                    ) {
+                        Icon(Icons.Filled.ContentCopy, contentDescription = null, tint = CleanMinimalismTheme.TextPrimary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Копировать путь", color = CleanMinimalismTheme.TextPrimary)
                     }
 
                     Row(
@@ -629,6 +659,86 @@ fun RootNexusApp() {
         )
     }
 
+    // About Dialog
+    if (showAboutDialog) {
+        AlertDialog(
+            onDismissRequest = { showAboutDialog = false },
+            title = { Text("О программе", color = CleanMinimalismTheme.TextPrimary) },
+            text = {
+                Column {
+                    Text(
+                        "Root File Manager — мощный инструмент для работы с файлами и системой.\n\nКонтакты:",
+                        color = CleanMinimalismTheme.TextSecondary,
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        "Telegram: @tetchtoker",
+                        color = CleanMinimalismTheme.AccentColor,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .padding(top = 8.dp)
+                            .clickable {
+                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://t.me/tetchtoker"))
+                                context.startActivity(intent)
+                            }
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = { showAboutDialog = false }, colors = ButtonDefaults.buttonColors(containerColor = CleanMinimalismTheme.AccentColor)) {
+                    Text("Закрыть", color = Color.White)
+                }
+            }
+        )
+    }
+
+    // SH Execute Dialog
+    if (showShExecuteDialog) {
+        selectedFileForAction?.let { fileItem ->
+            AlertDialog(
+                onDismissRequest = { showShExecuteDialog = false },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.Terminal, contentDescription = null, tint = CleanMinimalismTheme.AccentColor)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Запуск Скрипта", color = CleanMinimalismTheme.TextPrimary)
+                    }
+                },
+                text = {
+                    Text(
+                        "Запустить скрипт ${fileItem.name} от имени суперпользователя (Root)?",
+                        color = CleanMinimalismTheme.TextSecondary,
+                        fontSize = 14.sp
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            Toast.makeText(context, "Исполнение ${fileItem.name}...", Toast.LENGTH_SHORT).show()
+                            CoroutineScope(Dispatchers.IO).launch {
+                                // First add execution rights just in case
+                                RootUtils.execute("chmod +x \"${fileItem.path}\"")
+                                val output = RootUtils.executeWithOutput("sh \"${fileItem.path}\"")
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Исполнено. Вывод:\n${output.take(100)}${if (output.length > 100) "..." else ""}", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                            showShExecuteDialog = false
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = CleanMinimalismTheme.AccentColor)
+                    ) {
+                        Text("Запустить(Root)", color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showShExecuteDialog = false }) {
+                        Text("Отмена", color = CleanMinimalismTheme.TextSecondary)
+                    }
+                }
+            )
+        }
+    }
+
     // Universal File Viewer (Image etc)
     if (fileViewerItem != null) {
         val item = fileViewerItem!!
@@ -739,7 +849,7 @@ fun HeaderBar(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.FolderZip,
-                        contentDescription = "Nexus Folder",
+                        contentDescription = "Folder Icon",
                         tint = Color.White,
                         modifier = Modifier.size(24.dp)
                     )
@@ -770,17 +880,42 @@ fun HeaderBar(
                             tint = CleanMinimalismTheme.TextSecondary
                         )
                     }
-                    IconButton(
-                        onClick = onMoreClicked,
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.MoreVert,
-                            contentDescription = "More",
-                            tint = CleanMinimalismTheme.TextSecondary
-                        )
+                    Box {
+                        var expanded by remember { mutableStateOf(false) }
+                        IconButton(
+                            onClick = { expanded = true },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.MoreVert,
+                                contentDescription = "More",
+                                tint = CleanMinimalismTheme.TextSecondary
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false },
+                            modifier = Modifier.background(CleanMinimalismTheme.SurfaceDark)
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("О приложении", color = CleanMinimalismTheme.TextPrimary) },
+                                leadingIcon = { Icon(Icons.Filled.Info, contentDescription = null, tint = CleanMinimalismTheme.AccentColor) },
+                                onClick = {
+                                    expanded = false
+                                    onMoreClicked()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Выход", color = Color(0xFFBA1A1A)) },
+                                leadingIcon = { Icon(Icons.Filled.PowerSettingsNew, contentDescription = null, tint = Color(0xFFBA1A1A)) },
+                                onClick = {
+                                    expanded = false
+                                    android.os.Process.killProcess(android.os.Process.myPid())
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -1109,7 +1244,7 @@ fun FileExplorerTab(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = 16.dp)
                     ) {
-                        items(filteredFiles, key = { it.path }) { fileItem ->
+                        items(filteredFiles, key = { it.path + "_" + it.lastModified }) { fileItem ->
                             Box(modifier = Modifier.animateItemPlacement()) {
                                 Column {
                                     FileListItem(
@@ -1117,7 +1252,7 @@ fun FileExplorerTab(
                                         onClick = { onFileClick(fileItem) },
                                         onLongClick = { onFileLongClick(fileItem) }
                                     )
-                                    Divider(color = CleanMinimalismTheme.CardBorder.copy(alpha = 0.5f), thickness = (0.5).dp, modifier = Modifier.padding(horizontal = 16.dp))
+                                    HorizontalDivider(color = CleanMinimalismTheme.CardBorder.copy(alpha = 0.5f), thickness = (0.5).dp, modifier = Modifier.padding(horizontal = 16.dp))
                                 }
                             }
                         }
@@ -1378,127 +1513,182 @@ fun EditorTab(
 }
 
 // -------------------------------------------------------------
-// SECURE DOWNLOAD & UTILS (APPS) TAB SCREEN
+// APP MANAGER & UTILS TAB SCREEN
 // -------------------------------------------------------------
+
+data class AppEntry(
+    val name: String,
+    val packageName: String,
+    val icon: android.graphics.drawable.Drawable,
+    val isSystem: Boolean,
+    val sourceDir: String,
+    val dataDir: String
+)
 
 @Composable
 fun AppsTab(context: Context) {
-    val scrollState = rememberScrollState()
+    var installedApps by remember { mutableStateOf<List<AppEntry>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var searchQuery by remember { mutableStateOf("") }
+    
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            val pm = context.packageManager
+            val apps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+            val appEntries = apps.map { app ->
+                AppEntry(
+                    name = app.loadLabel(pm).toString(),
+                    packageName = app.packageName,
+                    icon = app.loadIcon(pm),
+                    isSystem = (app.flags and ApplicationInfo.FLAG_SYSTEM) != 0,
+                    sourceDir = app.sourceDir,
+                    dataDir = app.dataDir
+                )
+            }.sortedBy { it.name.lowercase() }
+            withContext(Dispatchers.Main) {
+                installedApps = appEntries
+                isLoading = false
+            }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(scrollState)
             .padding(16.dp)
     ) {
         Text(
-            text = "Системные Утилиты",
+            text = "Менеджер Приложений",
             color = CleanMinimalismTheme.TextPrimary,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 8.dp)
         )
-        Text(
-            text = "Быстрые функции суперпользователя и утилиты администрирования файловой структуры.",
-            color = CleanMinimalismTheme.TextSecondary,
-            fontSize = 13.sp,
-            modifier = Modifier.padding(bottom = 16.dp)
+        
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            placeholder = { Text("Поиск приложений...", color = CleanMinimalismTheme.TextSecondary) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = CleanMinimalismTheme.TextPrimary,
+                unfocusedTextColor = CleanMinimalismTheme.TextPrimary,
+                focusedBorderColor = CleanMinimalismTheme.AccentColor
+            ),
+            shape = RoundedCornerShape(12.dp),
+            singleLine = true,
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = CleanMinimalismTheme.TextSecondary) }
         )
 
-        // Utility 1: Host config editor info
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = CleanMinimalismTheme.SurfaceDark),
-            border = BorderStroke(1.dp, CleanMinimalismTheme.CardBorder),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+        if (isLoading) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = CleanMinimalismTheme.AccentColor)
+            }
+        } else {
+            val filteredApps = installedApps.filter { 
+                it.name.contains(searchQuery, ignoreCase = true) || 
+                it.packageName.contains(searchQuery, ignoreCase = true)
+            }
+            
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(CleanMinimalismTheme.AccentColor.copy(alpha = 0.1f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Filled.Code, contentDescription = null, tint = CleanMinimalismTheme.AccentColor)
-                }
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Hosts Редактор", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = CleanMinimalismTheme.TextPrimary)
-                    Text("Авто-бэкап и синтаксический разбор /etc/hosts для блокировки рекламы.", fontSize = 11.sp, color = CleanMinimalismTheme.TextSecondary)
+                items(filteredApps) { app ->
+                    AppItemCard(app, context)
                 }
             }
         }
+    }
+}
 
-        // Utility 2: Permissions Manager
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = CleanMinimalismTheme.SurfaceDark),
-            border = BorderStroke(1.dp, CleanMinimalismTheme.CardBorder),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp)
-        ) {
+@Composable
+fun AppItemCard(app: AppEntry, context: Context) {
+    var expanded by remember { mutableStateOf(false) }
+    
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = CleanMinimalismTheme.SurfaceDark),
+        border = BorderStroke(1.dp, CleanMinimalismTheme.CardBorder),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.animateContentSize()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .clickable { expanded = !expanded }
+                    .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(CleanMinimalismTheme.AccentColor.copy(alpha = 0.1f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Filled.LockOpen, contentDescription = null, tint = CleanMinimalismTheme.AccentColor)
-                }
-                Spacer(modifier = Modifier.width(16.dp))
+                androidx.compose.foundation.Image(
+                    bitmap = (app.icon as android.graphics.drawable.BitmapDrawable).bitmap.asImageBitmap(),
+                    contentDescription = null,
+                    modifier = Modifier.size(40.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Менеджер Прав", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = CleanMinimalismTheme.TextPrimary)
-                    Text("Изверяйте рекурсивно права владельца (chmod, chown).", fontSize = 11.sp, color = CleanMinimalismTheme.TextSecondary)
+                    Text(app.name, color = CleanMinimalismTheme.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(app.packageName, color = CleanMinimalismTheme.TextSecondary, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                if (app.isSystem) {
+                    Text(
+                        "SYSTEM", 
+                        fontSize = 9.sp, 
+                        color = CleanMinimalismTheme.AccentColor, 
+                        modifier = Modifier
+                            .border(1.dp, CleanMinimalismTheme.AccentColor, RoundedCornerShape(4.dp))
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                    )
+                }
+            }
+            
+            if (expanded) {
+                HorizontalDivider(color = CleanMinimalismTheme.CardBorder, thickness = 0.5.dp, modifier = Modifier.padding(horizontal = 12.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceAround
+                ) {
+                    AppActionButton(Icons.Default.Delete, "Удалить") {
+                        val intent = Intent(Intent.ACTION_DELETE).apply {
+                            data = Uri.parse("package:${app.packageName}")
+                        }
+                        context.startActivity(intent)
+                    }
+                    AppActionButton(Icons.Default.FolderOpen, "Данные") {
+                         Toast.makeText(context, "Идите в Files: ${app.dataDir}", Toast.LENGTH_LONG).show()
+                    }
+                    AppActionButton(Icons.Default.Block, "Стоп") {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            val success = RootUtils.execute("pm disable ${app.packageName}")
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, if (success) "Приложение отключено" else "Ошибка (нужен Root)", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                    AppActionButton(Icons.Default.Settings, "Настройки") {
+                        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = Uri.parse("package:${app.packageName}")
+                        }
+                        context.startActivity(intent)
+                    }
                 }
             }
         }
+    }
+}
 
-        // Utility 3: Backup generator
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = CleanMinimalismTheme.SurfaceDark),
-            border = BorderStroke(1.dp, CleanMinimalismTheme.CardBorder),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(CleanMinimalismTheme.AccentColor.copy(alpha = 0.1f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Filled.Backup, contentDescription = null, tint = CleanMinimalismTheme.AccentColor)
-                }
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Система Бэкапов", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = CleanMinimalismTheme.TextPrimary)
-                    Text("Создание резервных .tar/.tar.gz архивов важных разделов.", fontSize = 11.sp, color = CleanMinimalismTheme.TextSecondary)
-                }
-            }
-        }
+@Composable
+fun AppActionButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable { onClick() }.padding(4.dp)
+    ) {
+        Icon(icon, contentDescription = null, tint = CleanMinimalismTheme.AccentColor, modifier = Modifier.size(24.dp))
+        Text(label, color = CleanMinimalismTheme.TextSecondary, fontSize = 9.sp)
     }
 }
 
@@ -1517,18 +1707,43 @@ fun SettingsTab(context: Context, isRootAvailable: Boolean?) {
     ) {
         // App Info Header
         Text(
-            text = "Информация о приложении",
+            text = "О приложении",
             color = CleanMinimalismTheme.TextPrimary,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 8.dp)
         )
         Text(
-            text = "Plus Minus File Manager - супербыстрый, минималистичный диспетчер для работы с локальной файловой системой и root-доступом.\nТворец: Plus Minus",
+            text = "Root File Manager — быстрый и минималистичный проводник с поддержкой Root-прав и мощным редактором кода.",
             color = CleanMinimalismTheme.TextSecondary,
             fontSize = 13.sp,
             modifier = Modifier.padding(bottom = 16.dp)
         )
+
+        // Device Info
+        Text(
+            text = "Информация об устройстве",
+            color = CleanMinimalismTheme.TextPrimary,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        Card(
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = CleanMinimalismTheme.SecondaryBackground),
+            border = BorderStroke(1.dp, CleanMinimalismTheme.CardBorder),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                DeviceInfoRow("Модель", android.os.Build.MODEL)
+                DeviceInfoRow("Бренд", android.os.Build.BRAND)
+                DeviceInfoRow("Android", android.os.Build.VERSION.RELEASE)
+                DeviceInfoRow("SDK", android.os.Build.VERSION.SDK_INT.toString())
+                DeviceInfoRow("Архитектура", android.os.Build.SUPPORTED_ABIS.joinToString(", "))
+            }
+        }
 
         // Settings / Theme
         Card(
@@ -1575,80 +1790,230 @@ fun SettingsTab(context: Context, isRootAvailable: Boolean?) {
             border = BorderStroke(1.dp, CleanMinimalismTheme.AccentColor),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp)
-                .clickable {
-                    if (isRootAvailable == true) {
-                        Toast.makeText(context, "Применение блокировки OTA...", Toast.LENGTH_SHORT).show()
-                        CoroutineScope(Dispatchers.IO).launch {
-                            val commands = listOf(
-                                "pm disable-user --user 0 com.google.android.gms/.update.SystemUpdateActivity",
-                                "pm disable com.google.android.gms/.update.SystemUpdateActivity",
-                                "pm disable com.google.android.gms/com.google.android.gms.update.SystemUpdateService",
-                                "pm disable com.google.android.gms/com.google.android.gms.update.SystemUpdateService\$Receiver",
-                                "pm disable com.google.android.gms/com.google.android.gms.update.SystemUpdateService\$SecretCodeReceiver",
-                                "pm disable com.android.dynsystem",
-                                "rm -rf /data/ota_package/*"
-                            )
-                            var successCount = 0
-                            for (cmd in commands) {
-                                if (RootUtils.execute(cmd)) successCount++
-                            }
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(context, "OTA Заблокировано! Успешных команд: $successCount из ${commands.size}", Toast.LENGTH_LONG).show()
-                            }
-                        }
-                    } else {
-                        Toast.makeText(context, "Требуются Root-права", Toast.LENGTH_SHORT).show()
-                    }
-                }
+                .padding(bottom = 12.dp)
         ) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(16.dp)
             ) {
-                Icon(Icons.Filled.SecurityUpdateWarning, contentDescription = null, tint = CleanMinimalismTheme.AccentColor)
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text("Блокировка OTA Обновлений Google Pixel", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = CleanMinimalismTheme.TextPrimary)
-                    Text("Блокировка для Android 14, 15, 16, 17 через отключение сервисов Google Play.", fontSize = 11.sp, color = CleanMinimalismTheme.TextSecondary, lineHeight = 14.sp)
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 12.dp)) {
+                    Icon(Icons.Filled.SecurityUpdateWarning, contentDescription = null, tint = CleanMinimalismTheme.AccentColor)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text("Управление OTA Обновлениями", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = CleanMinimalismTheme.TextPrimary)
+                        Text("Блокировка/Разблокировка обновлений для Pixel.", fontSize = 11.sp, color = CleanMinimalismTheme.TextSecondary)
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = {
+                            if (isRootAvailable == true) {
+                                Toast.makeText(context, "Применение блокировки OTA...", Toast.LENGTH_SHORT).show()
+                                CoroutineScope(Dispatchers.IO).launch {
+                                    val commands = listOf(
+                                        "pm disable-user --user 0 com.google.android.gms/.update.SystemUpdateActivity",
+                                        "pm disable com.google.android.gms/.update.SystemUpdateActivity",
+                                        "pm disable com.google.android.gms/com.google.android.gms.update.SystemUpdateService",
+                                        "pm disable com.google.android.gms/com.google.android.gms.update.SystemUpdateService\$Receiver",
+                                        "pm disable com.google.android.gms/com.google.android.gms.update.SystemUpdateService\$SecretCodeReceiver",
+                                        "pm disable com.android.dynsystem",
+                                        "rm -rf /data/ota_package/*"
+                                    )
+                                    var successCount = 0
+                                    for (cmd in commands) {
+                                        if (RootUtils.execute(cmd)) successCount++
+                                    }
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(context, "OTA Заблокировано! Успешных команд: $successCount", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            } else {
+                                Toast.makeText(context, "Требуются Root-права", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBA1A1A)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Заблокировать", color = Color.White)
+                    }
+                    Button(
+                        onClick = {
+                            if (isRootAvailable == true) {
+                                Toast.makeText(context, "Восстановление OTA...", Toast.LENGTH_SHORT).show()
+                                CoroutineScope(Dispatchers.IO).launch {
+                                    val commands = listOf(
+                                        "pm enable com.google.android.gms/.update.SystemUpdateActivity",
+                                        "pm enable com.google.android.gms/com.google.android.gms.update.SystemUpdateService",
+                                        "pm enable com.google.android.gms/com.google.android.gms.update.SystemUpdateService\$Receiver",
+                                        "pm enable com.google.android.gms/com.google.android.gms.update.SystemUpdateService\$SecretCodeReceiver",
+                                        "pm enable com.android.dynsystem"
+                                    )
+                                    var successCount = 0
+                                    for (cmd in commands) {
+                                        if (RootUtils.execute(cmd)) successCount++
+                                    }
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(context, "OTA Разблокировано! Успешных команд: $successCount", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            } else {
+                                Toast.makeText(context, "Требуются Root-права", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = CleanMinimalismTheme.HighlightGreen),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Разблокировать", color = Color.White)
+                    }
                 }
             }
         }
-
-        // DOWNLOAD GUIDE CARD (Addresses user's "Как его теперь скачать" request directly)
+        
+        // System Status
+        Text(
+            text = "Статус Системы",
+            color = CleanMinimalismTheme.TextPrimary,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(vertical = 8.dp)
+        )
         Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = CleanMinimalismTheme.SurfaceDark),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = CleanMinimalismTheme.SecondaryBackground),
             border = BorderStroke(1.dp, CleanMinimalismTheme.CardBorder),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 16.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Download, contentDescription = null, tint = CleanMinimalismTheme.AccentColor)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Инструкция: Как скачать исходники / APK",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = CleanMinimalismTheme.TextPrimary
-                    )
+            Column(modifier = Modifier.padding(16.dp)) {
+                val batteryLevel = getBatteryLevel(context)
+                val am = context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+                val mi = android.app.ActivityManager.MemoryInfo()
+                am.getMemoryInfo(mi)
+                val availableMegs = mi.availMem / 1048576L
+                val totalMegs = mi.totalMem / 1048576L
+
+                DeviceInfoRow("Заряд батареи", "$batteryLevel%")
+                DeviceInfoRow("Свободно ОЗУ", "${availableMegs} MB / ${totalMegs} MB")
+                DeviceInfoRow("Android SDK", android.os.Build.VERSION.SDK_INT.toString())
+                DeviceInfoRow("Версия ПО", "1.4.2")
+            }
+        }
+        
+        // Power Controls
+        Text(
+            text = "Управление Питанием",
+            color = CleanMinimalismTheme.TextPrimary,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(vertical = 8.dp)
+        )
+        Card(
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = CleanMinimalismTheme.SecondaryBackground),
+            border = BorderStroke(1.dp, CleanMinimalismTheme.CardBorder),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Button(
+                        onClick = {
+                            if (isRootAvailable == true) {
+                                RootUtils.execute("reboot")
+                            } else {
+                                Toast.makeText(context, "Требуются Root-права", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = CleanMinimalismTheme.SurfaceDark),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Reboot", color = CleanMinimalismTheme.TextPrimary)
+                    }
+                    Button(
+                        onClick = {
+                            if (isRootAvailable == true) {
+                                RootUtils.execute("reboot bootloader")
+                            } else {
+                                Toast.makeText(context, "Требуются Root-права", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = CleanMinimalismTheme.SurfaceDark),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Bootloader", color = CleanMinimalismTheme.TextPrimary)
+                    }
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "Вы можете скачать проект или готовый APK прямо из интерфейса Google AI Studio Build:",
-                    color = CleanMinimalismTheme.TextSecondary,
-                    fontSize = 13.sp,
-                    lineHeight = 18.sp
-                )
                 Spacer(modifier = Modifier.height(8.dp))
-                BulletPoint("1. Нажмите на иконку 'Export as ZIP' наверху.")
-                BulletPoint("2. Чтобы получить APK файла нажмите 'Generate APK'.")
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Button(
+                        onClick = {
+                            if (isRootAvailable == true) {
+                                RootUtils.execute("reboot recovery")
+                            } else {
+                                Toast.makeText(context, "Требуются Root-права", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = CleanMinimalismTheme.SurfaceDark),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Recovery", color = CleanMinimalismTheme.TextPrimary)
+                    }
+                    Button(
+                        onClick = {
+                            if (isRootAvailable == true) {
+                                RootUtils.execute("reboot -p")
+                            } else {
+                                Toast.makeText(context, "Требуются Root-права", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBA1A1A)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Power Off", color = Color.White)
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Button(
+                        onClick = {
+                            if (isRootAvailable == true) {
+                                RootUtils.execute("setprop ctl.restart zygote")
+                            } else {
+                                Toast.makeText(context, "Требуются Root-права", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = CleanMinimalismTheme.SurfaceDark),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Soft Reboot", color = CleanMinimalismTheme.TextPrimary)
+                    }
+                    Button(
+                        onClick = {
+                            if (isRootAvailable == true) {
+                                RootUtils.execute("pkill -TERM -u system_server") 
+                                // Alternatively: setprop ctl.restart surfaceflinger or pkill systemui
+                            } else {
+                                Toast.makeText(context, "Требуются Root-права", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = CleanMinimalismTheme.SurfaceDark),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Reset UI", color = CleanMinimalismTheme.TextPrimary)
+                    }
+                }
             }
         }
 
@@ -1705,6 +2070,19 @@ fun SettingsTab(context: Context, isRootAvailable: Boolean?) {
                 }
             }
         }
+    }
+}
+
+@Composable
+fun DeviceInfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, color = CleanMinimalismTheme.TextSecondary, fontSize = 12.sp)
+        Text(value, color = CleanMinimalismTheme.TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -1879,6 +2257,15 @@ fun getFilesForPath(path: String, context: Context): List<FileItem> {
     return items.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }))
 }
 
+fun getBatteryLevel(context: Context): Int {
+    val batteryStatus: android.content.Intent? = android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED).let { filter ->
+        context.registerReceiver(null, filter)
+    }
+    val level = batteryStatus?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1) ?: -1
+    val scale = batteryStatus?.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, -1) ?: -1
+    return if (level >= 0 && scale > 0) (level * 100 / scale) else level
+}
+
 fun readFileContent(path: String, context: Context): String {
     return try {
         val file = File(path)
@@ -1901,7 +2288,7 @@ fun saveFileContent(path: String, content: String, context: Context): Boolean {
             true
         } else {
             // Need root
-            val tempFile = File(context.cacheDir, "root_nexus_temp")
+            val tempFile = File(context.cacheDir, "root_mgr_temp")
             tempFile.writeText(content)
             val success = RootUtils.execute("cp \"${tempFile.absolutePath}\" \"$path\"")
             tempFile.delete()
@@ -1909,7 +2296,7 @@ fun saveFileContent(path: String, content: String, context: Context): Boolean {
         }
     } catch (e: Exception) {
         e.printStackTrace()
-        val tempFile = File(context.cacheDir, "root_nexus_temp")
+        val tempFile = File(context.cacheDir, "root_mgr_temp")
         tempFile.writeText(content)
         val success = RootUtils.execute("cp \"${tempFile.absolutePath}\" \"$path\"")
         tempFile.delete()

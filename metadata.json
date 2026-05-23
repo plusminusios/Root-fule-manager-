@@ -1,6 +1,6 @@
 {
-  "name": "Plus Minus File Manager",
-  "description": "Powerful file manager with Root access capability, clean UI, built-in rich syntax editor, OTA blocker, and APK installer. By Plus Minus.",
+  "name": "Root File Manager",
+  "description": "Powerful file manager with Root access capability, clean UI, built-in rich syntax editor, OTA blocker, and APK installer.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

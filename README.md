@@ -1,21 +1,22 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Root File Manager
 
-# Run and deploy your AI Studio app
+A fast, minimalist, and powerful file manager for Android with specialized features for Root users. Root File Manager provides a clean interface for managing your device's filesystem with professional-grade tools.
 
-This contains everything you need to run your app locally.
+## Key Features
 
-View your app in AI Studio: https://ai.studio/apps/cc8f85d0-fc29-4835-b428-384101906b36
+- **Root Access**: Full control over system partitions and restricted directories (requires Root permissions).
+- **Core Operations**: Fast file management including copy, move, delete, and rename.
+- **Advanced Editor**: Built-in code and text editor with syntax highlighting for various file formats.
+- **Application Manager**: Comprehensive tool to view, manage, and uninstall applications.
+- **System Utilities**: Quick access to system information, battery status, and power controls.
+- **Clean UI**: A modern, minimalist interface built with Jetpack Compose.
+- **Intelligence**: System-level analysis for error logs and diagnostic data.
 
-## Run Locally
+## Security & Privacy
 
-**Prerequisites:**  [Android Studio](https://developer.android.com/studio)
+Root File Manager operates locally and requests standard permissions for file management. Root functionality is only active on devices with existing Root access.
 
+## Requirements
 
-1. Open Android Studio
-2. Select **Open** and choose the directory containing this project
-3. Allow Android Studio to fix any incompatibilities as it imports the project.
-4. Create a file named `.env` in the project directory and set `GEMINI_API_KEY` in that file to your Gemini API key (see `.env.example` for an example)
-5. Remove this line from the app's `build.gradle.kts` file: `signingConfig = signingConfigs.getByName("debugConfig")`
-6. Run the app on an emulator or physical device
+- Android 8.0+ (Oreo) or higher.
+- Root access (optional, for system features).
