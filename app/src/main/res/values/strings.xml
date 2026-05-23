@@ -1,17 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Root File Manager</string>
-    <string name="search_hint">Поиск файлов...</string>
-    <string name="create_folder">Создать папку</string>
-    <string name="create_file">Создать файл</string>
-    <string name="rename">Переименовать</string>
-    <string name="delete">Удалить</string>
-    <string name="cancel">Отмена</string>
-    <string name="ok">ОК</string>
-    <string name="save">Сохранить</string>
-    <string name="editor">Редактор</string>
-    <string name="installed_apks">Установка APK</string>
-    <string name="permissions">Разрешения</string>
-    <string name="root_status">Статус Root</string>
-    <string name="root_allowed">Разрешено</string>
+    <string name="search_hint">Search files...</string>
+    <string name="create_folder">Create Folder</string>
+    <string name="create_file">Create File</string>
+    <string name="rename">Rename</string>
+    <string name="delete">Delete</string>
+    <string name="cancel">Cancel</string>
+    <string name="ok">OK</string>
+    <string name="save">Save</string>
+    <string name="editor">Editor</string>
+    <string name="installed_apks">Install APK</string>
+    <string name="permissions">Permissions</string>
+    <string name="root_status">Root Status</string>
+    <string name="root_allowed">Allowed</string>
+    <string name="root_warning">Warning: Root access not granted. App is running in limited sandbox mode.</string>
+    <string name="nav_files">Files</string>
+    <string name="nav_editor">Editor</string>
+    <string name="nav_ai">AI</string>
+    <string name="nav_apps">Apps</string>
+    <string name="nav_settings">Settings</string>
+    
+    <string name="about_title">About</string>
+    <string name="about_desc">Root File Manager — fast and minimalist file explorer with Root access support and a powerful code editor.</string>
+    <string name="device_info">Device Information</string>
+    <string name="appearance">Appearance (Theme)</string>
+    <string name="dark_light_mode">Dark or light mode</string>
+    <string name="language">Language</string>
+    <string name="select_language">Select application language</string>
+    <string name="pixel_tools">Google Pixel Tools</string>
+    <string name="ota_management">Manage OTA Updates</string>
+    <string name="ota_desc">Block or Unblock system updates for Pixel devices.</string>
+    <string name="storage">Storage</string>
+    <string name="memory">Memory</string>
+    <string name="network">Network</string>
+    <string name="search_apps">Search apps...</string>
+    <string name="root_intelligence">Root Intelligence</string>
+    <string name="ai_login_desc">Enter your API Key from Google AI Studio or use Google Login.</string>
+    <string name="github_repo">GitHub Repository</string>
 </resources>

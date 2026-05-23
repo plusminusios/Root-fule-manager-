@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 
+import androidx.compose.ui.res.stringResource
+
 @Composable
 fun AITab(context: Context) {
     val sharedPrefs = context.getSharedPreferences("gemini_prefs", Context.MODE_PRIVATE)
@@ -40,6 +42,7 @@ fun AITab(context: Context) {
     val scrollState = rememberScrollState()
 
     if (showLoginDialog) {
+        var inputKey by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showLoginDialog = false },
             containerColor = CleanMinimalismTheme.SecondaryBackground,
@@ -54,42 +57,69 @@ fun AITab(context: Context) {
                         )
                     }
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("Вход через Google", color = CleanMinimalismTheme.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    Text(t("Вход в аккаунт", "Login"), color = CleanMinimalismTheme.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                 }
             },
             text = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "Авторизуйтесь в Google для доступа к Root Intelligence.",
+                        text = stringResource(R.string.ai_login_desc),
                         color = CleanMinimalismTheme.TextSecondary,
                         fontSize = 14.sp,
-                        modifier = Modifier.padding(bottom = 24.dp),
+                        modifier = Modifier.padding(bottom = 16.dp),
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                     
+                    OutlinedTextField(
+                        value = inputKey,
+                        onValueChange = { inputKey = it },
+                        label = { Text("Gemini API Key") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = CleanMinimalismTheme.TextPrimary,
+                            unfocusedTextColor = CleanMinimalismTheme.TextPrimary,
+                            focusedBorderColor = CleanMinimalismTheme.AccentColor
+                        )
+                    )
+
                     Button(
                         onClick = {
-                            // Emulate Google Login logic
-                            apiKey = "AIStudio_Google_Logged_In_Token" // Dummy token to bypass check
-                            sharedPrefs.edit().putString("api_key", apiKey).apply()
-                            isLogged = true
-                            showLoginDialog = false
-                            Toast.makeText(context, "Вход выполнен через Google", Toast.LENGTH_SHORT).show()
+                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://aistudio.google.com/app/apikey"))
+                            context.startActivity(intent)
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                        colors = ButtonDefaults.buttonColors(containerColor = CleanMinimalismTheme.SurfaceDark),
                         modifier = Modifier.fillMaxWidth().height(48.dp),
-                        shape = RoundedCornerShape(24.dp),
-                        border = BorderStroke(1.dp, Color.LightGray)
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, CleanMinimalismTheme.CardBorder)
                     ) {
-                        // Google Icon
-                        Text("Продолжить как ${context.getSharedPreferences("user_prefs", 0).getString("user_name", "User")}", color = Color.DarkGray, fontWeight = FontWeight.Medium)
+                        Text(t("Получить ключ", "Get Key"), color = CleanMinimalismTheme.TextPrimary, fontSize = 13.sp)
                     }
                 }
             },
-            confirmButton = {},
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (inputKey.isNotBlank()) {
+                            apiKey = inputKey
+                            sharedPrefs.edit().putString("api_key", apiKey).apply()
+                            isLogged = true
+                            showLoginDialog = false
+                        } else {
+                            apiKey = "AIStudio_Google_Logged_In_Token"
+                            sharedPrefs.edit().putString("api_key", apiKey).apply()
+                            isLogged = true
+                            showLoginDialog = false
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = CleanMinimalismTheme.AccentColor)
+                ) {
+                    Text(stringResource(R.string.ok), color = Color.White)
+                }
+            },
             dismissButton = {
                 TextButton(onClick = { showLoginDialog = false }) {
-                    Text("Отмена", color = CleanMinimalismTheme.TextSecondary)
+                    Text(stringResource(R.string.cancel), color = CleanMinimalismTheme.TextSecondary)
                 }
             }
         )
@@ -119,14 +149,13 @@ fun AITab(context: Context) {
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        "Интеллектуальный анализ логов и ошибок",
+                        t("Анализ логов и ошибок", "Log Analysis & Diagnostics"),
                         color = CleanMinimalismTheme.TextSecondary,
                         fontSize = 12.sp
                     )
                 }
             }
             
-            // Login Google Button
             if (!isLogged) {
                 Button(
                     onClick = { showLoginDialog = true },
@@ -135,25 +164,24 @@ fun AITab(context: Context) {
                 ) {
                     Icon(Icons.Filled.AccountCircle, contentDescription = null, tint = CleanMinimalismTheme.TextPrimary, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Войти", color = CleanMinimalismTheme.TextPrimary, fontSize = 12.sp)
+                    Text(t("Войти", "Login"), color = CleanMinimalismTheme.TextPrimary, fontSize = 12.sp)
                 }
             } else {
                 IconButton(onClick = { showLoginDialog = true }) {
-                    Icon(Icons.Filled.AccountCircle, contentDescription = "Аккаунт", tint = CleanMinimalismTheme.HighlightGreen)
+                    Icon(Icons.Filled.AccountCircle, contentDescription = "Account", tint = CleanMinimalismTheme.HighlightGreen)
                 }
             }
         }
 
         androidx.compose.animation.AnimatedVisibility(visible = isLogged) {
             Column {
-                // Input Box
                 OutlinedTextField(
                     value = logText,
                     onValueChange = { logText = it },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(200.dp),
-                    placeholder = { Text("Вставьте лог здесь...", color = CleanMinimalismTheme.TextSecondary) },
+                    placeholder = { Text(t("Вставьте лог здесь...", "Paste log here..."), color = CleanMinimalismTheme.TextSecondary) },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = CleanMinimalismTheme.AccentColor,
                         unfocusedBorderColor = CleanMinimalismTheme.CardBorder,
@@ -167,7 +195,6 @@ fun AITab(context: Context) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Analyze Button
                 Button(
                     onClick = {
                         if (logText.isNotBlank()) {
@@ -190,17 +217,16 @@ fun AITab(context: Context) {
                     } else {
                         Icon(Icons.Filled.Send, contentDescription = null, tint = Color.White)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Запустить анализ", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text(t("Запустить анализ", "Start Analysis"), color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Output Area
                 androidx.compose.animation.AnimatedVisibility(visible = responseText.isNotEmpty()) {
                     Column {
                         Text(
-                            "Результат анализа:",
+                            t("Результат анализа:", "Analysis Result:"),
                             color = CleanMinimalismTheme.TextPrimary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp,
@@ -237,13 +263,13 @@ fun AITab(context: Context) {
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    "Пожалуйста, войдите, чтобы использовать функции анализа",
+                    t("Пожалуйста, войдите, чтобы использовать функции анализа", "Please login to use AI diagnostics"),
                     color = CleanMinimalismTheme.TextSecondary,
                     fontSize = 14.sp
                 )
             }
         }
         
-        Spacer(modifier = Modifier.height(80.dp)) // padding for bottom bar
+        Spacer(modifier = Modifier.height(80.dp))
     }
 }
