@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Root File Manager</string>
+    <!-- OAuth 2.0 Web Client ID from Google Cloud Console (required for Google Sign-In token) -->
+    <string name="default_web_client_id" translatable="false">YOUR_WEB_CLIENT_ID.apps.googleusercontent.com</string>
+    <string name="search_hint">Поиск файлов...</string>
+    <string name="create_folder">Создать папку</string>
+    <string name="create_file">Создать файл</string>
+    <string name="rename">Переименовать</string>
+    <string name="delete">Удалить</string>
+    <string name="cancel">Отмена</string>
+    <string name="ok">ОК</string>
+    <string name="save">Сохранить</string>
+    <string name="editor">Редактор</string>
+    <string name="installed_apks">Установка APK</string>
+    <string name="permissions">Разрешения</string>
+    <string name="root_status">Статус Root</string>
+    <string name="root_allowed">Разрешено</string>
+</resources>

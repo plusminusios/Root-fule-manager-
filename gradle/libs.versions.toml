@@ -1,0 +1,39 @@
+[versions]
+# FIX: AGP 8.4.1 + Gradle 9.x caused "Cannot mutate dependencies after resolved".
+# 8.5.2 resolves this conflict.
+agp = "8.5.2"
+kotlin = "1.9.22"
+coreKtx = "1.13.1"
+lifecycleRuntimeKtx = "2.8.2"
+activityCompose = "1.9.0"
+materialIconsExtended = "1.6.8"
+retrofit = "2.11.0"
+serialization = "1.6.3"
+okhttp = "4.12.0"
+coil = "2.6.0"
+# NEW: Google Sign-In dependency
+playServicesAuth = "21.2.0"
+
+[libraries]
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
+androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+androidx-compose-ui = { group = "androidx.compose.ui", name = "ui", version = "1.6.8" }
+androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics", version = "1.6.8" }
+androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview", version = "1.6.8" }
+androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3", version = "1.2.1" }
+androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended", version.ref = "materialIconsExtended" }
+retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
+retrofit-converter-serialization = { group = "com.squareup.retrofit2", name = "converter-kotlinx-serialization", version.ref = "retrofit" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+# NEW: Real Google Sign-In
+play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+# NOTE: secrets plugin removed — it caused build failure with Gradle 9.x.
+# API key is now stored securely in SharedPreferences (user-entered, never in APK).
