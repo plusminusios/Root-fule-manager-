@@ -1,21 +1,83 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Root File Manager
 
-# Run and deploy your AI Studio app
+Файловый менеджер для Android. Работает и без root — с доступом к обычному хранилищу. С root можно лазить по системным разделам, менять права, ставить APK тихо, перезагружать в recovery и т.д.
 
-This contains everything you need to run your app locally.
+Стек: Kotlin, Jetpack Compose, Material 3.
 
-View your app in AI Studio: https://ai.studio/apps/cc8f85d0-fc29-4835-b428-384101906b36
+## Что умеет
 
-## Run Locally
+**Файлы** — просмотр, поиск, создание папок/файлов, переименование, удаление. Быстрые переходы в хранилище, «Загрузки» и корень `/`. Долгий тап по элементу — контекстное меню.
 
-**Prerequisites:**  [Android Studio](https://developer.android.com/studio)
+**Редактор** — открывает текстовые файлы прямо в приложении. Подсветка комментариев, настраиваемый размер шрифта.
 
+**Приложения** — список установленных пакетов, информация, удаление (где доступно).
 
-1. Open Android Studio
-2. Select **Open** and choose the directory containing this project
-3. Allow Android Studio to fix any incompatibilities as it imports the project.
-4. Create a file named `.env` in the project directory and set `GEMINI_API_KEY` in that file to your Gemini API key (see `.env.example` for an example)
-5. Remove this line from the app's `build.gradle.kts` file: `signingConfig = signingConfigs.getByName("debugConfig")`
-6. Run the app on an emulator or physical device
+**ИИ** — анализ logcat/dmesg и простой чат через Gemini API. Вход через Google аккаунт; ключ API вводится вручную и хранится только на устройстве.
+
+**Настройки** — тема, цвет акцента, сортировка, скрытые файлы, стартовая папка. Для Pixel есть блокировка/разблокировка OTA (нужен root). Там же reboot, recovery, soft reboot.
+
+Root не обязателен. Без него приложение работает как обычный проводник по `/storage/emulated/0`, но для полного доступа к файлам на Android 11+ нужно выдать разрешение «Доступ ко всем файлам».
+
+## Требования
+
+- Android 8.0+ (API 26)
+- Android Studio Hedgehog или новее для сборки
+- JDK 17
+
+## Сборка
+
+```bash
+git clone https://github.com/YOUR_USERNAME/root-file-manager.git
+cd root-file-manager
+```
+
+Открыть проект в Android Studio → **Build → Build Bundle(s) / APK(s) → Build APK(s)**.
+
+Debug APK:
+
+```
+app/build/outputs/apk/debug/app-debug.apk
+```
+
+Gradle wrapper в репозитории может отсутствовать — Studio подтянет его сама при первом открытии.
+
+## Первый запуск
+
+1. Открой вкладку **Файлы**.
+2. Нажми **Разрешить** и выдай доступ к хранилищу (на Android 11+ — «Разрешить доступ ко всем файлам»).
+3. По умолчанию открывается внутреннее хранилище, не корень системы.
+
+## Google Sign-In и Gemini
+
+Для вкладки **ИИ** нужно:
+
+1. Создать проект в [Google Cloud Console](https://console.cloud.google.com/).
+2. Добавить OAuth client (Android): package `com.example` + SHA-1 от keystore.
+3. Создать Web client и прописать его ID в `app/src/main/res/values/strings.xml`:
+
+```xml
+<string name="default_web_client_id">XXXX.apps.googleusercontent.com</string>
+```
+
+1. Ключ Gemini взять на [aistudio.google.com](https://aistudio.google.com) и ввести в приложении после входа через Google.
+
+`firebase-applet-config.json` в git не коммитим — там ключи.
+
+## Структура
+
+```
+app/src/main/java/com/example/
+  MainActivity.kt      — UI, проводник, редактор, настройки
+  AITab.kt             — Google Sign-In, Gemini
+  GeminiApi.kt         — запросы к API
+  AppPreferences.kt    — настройки пользователя
+  StorageHelper.kt     — разрешения и пути
+```
+
+## Контакты
+
+Telegram: [@tetchtoker](https://t.me/tetchtoker)
+
+## Лицензия
+
+Без лицензии — бери и делай что хочешь, но сам отвечаешь за последствия.
