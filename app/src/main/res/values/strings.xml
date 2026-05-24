@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="app_name">Root File Manager</string>
-    <string name="root_warning">Root permissions are required for full system editing. Running in non-root fallback mode.</string>
-</resources>

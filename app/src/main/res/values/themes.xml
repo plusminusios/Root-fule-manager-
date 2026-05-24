@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Basic Theme to let AppCompat load NoActionBar -->
-    <style name="Theme.AppCompat.NoActionBar" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your theme here. -->
-    </style>
-</resources>
