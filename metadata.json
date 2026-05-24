@@ -1,6 +1,0 @@
-{
-  "name": "Root File Manager",
-  "description": "Professional file manager with Root access, integrated system dashboard, code editor, OTA control, and advanced AI diagnostics.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
