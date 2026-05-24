@@ -1,0 +1,4 @@
+# Скопируйте в local.properties (файл в .gitignore)
+#
+# ИИ (вкладка «Анализ» → «API ключ»): Gemini 3.5 Flash
+# Ключ: https://aistudio.google.com/apikey — вводится в приложении, в APK не хранится.
